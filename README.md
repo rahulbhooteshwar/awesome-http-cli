@@ -20,7 +20,24 @@ An interactive, colorful command-line HTTP client built with Node.js. Perfect fo
 - **Quick Mode**: Command-line arguments for fast requests
 - **Error Handling**: Comprehensive error reporting
 
-## Installation 📦
+## Installation
+```bash
+npm i -g awesome-http-cli
+```
+## Help Menu
+
+```bash
+awesome-http-cli --help
+```
+![Screenshot 2025-07-04 at 19 07 05](https://github.com/user-attachments/assets/0c2f5ea4-d322-4824-9de5-b3b0004b37ac)
+
+```bash
+awesome-http-cli quick --help
+```
+![Screenshot 2025-07-04 at 19 07 25](https://github.com/user-attachments/assets/8c7b1c4e-8f8a-49bb-bfd3-e69683e1b0cd)
+
+
+## Local Development & Installation 📦
 
 1. **Clone or download the files**
 2. **Install dependencies:**
