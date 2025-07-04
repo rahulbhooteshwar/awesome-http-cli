@@ -1,4 +1,5 @@
-# HTTP CLI Tool 🚀
+
+# awesome-http-cli 🚀
 
 An interactive, colorful command-line HTTP client built with Node.js. Perfect for testing APIs, making HTTP requests, and exploring web services directly from your terminal.
 
