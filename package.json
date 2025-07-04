@@ -1,10 +1,10 @@
 {
-  "name": "awesome-http-cli",
+  "name": "awesome-awesome-http-cli",
   "version": "1.0.0",
   "description": "Interactive HTTP client for the command line",
   "main": "index.js",
   "bin": {
-    "awesome-http-cli": "./index.js"
+    "awesome-awesome-http-cli": "./index.js"
   },
   "scripts": {
     "start": "node index.js",
@@ -19,8 +19,8 @@
     "client",
     "interactive",
     "command-line",
-    "awesome-http-cli",
-    "http-cli"
+    "awesome-awesome-http-cli",
+    "awesome-http-cli"
   ],
   "author": {
     "name": "Rahul Bhooteshwar",

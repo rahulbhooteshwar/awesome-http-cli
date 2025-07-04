@@ -6,13 +6,13 @@ An interactive, colorful command-line HTTP client built with Node.js. Perfect fo
 
 - **Interactive Mode**: Step-by-step prompts to build your HTTP request
 - **Multiple HTTP Methods**: GET, POST, PUT, DELETE, PATCH, HEAD, OPTIONS
-- **Header Management**: 
+- **Header Management**:
   - Select from common headers with checkboxes
   - Add custom headers in JSON format
 - **Query Parameters**: Easy parameter input with key=value&key2=value2 format
 - **Request Body**: Support for JSON and text bodies with validation
 - **Colorful Output**: Beautiful, colored response formatting
-- **Response Analysis**: 
+- **Response Analysis**:
   - Status codes with color coding
   - Response headers table
   - Formatted response body
@@ -58,7 +58,7 @@ node index.js
 
 Or if globally installed:
 ```bash
-http-cli start
+awesome-http-cli start
 ```
 
 ### Quick Mode
@@ -67,13 +67,13 @@ For quick requests without prompts:
 
 ```bash
 # Simple GET request
-http-cli quick -u https://api.github.com/users/octocat
+awesome-http-cli quick -u https://api.github.com/users/octocat
 
 # POST request with data
-http-cli quick -u https://httpbin.org/post -m POST -d '{"key":"value"}' -H '{"Content-Type":"application/json"}'
+awesome-http-cli quick -u https://httpbin.org/post -m POST -d '{"key":"value"}' -H '{"Content-Type":"application/json"}'
 
 # With custom headers
-http-cli quick -u https://api.example.com -H '{"Authorization":"Bearer token123","X-API-Key":"abc123"}'
+awesome-http-cli quick -u https://api.example.com -H '{"Authorization":"Bearer token123","X-API-Key":"abc123"}'
 ```
 
 ### Quick Mode Options
@@ -129,7 +129,7 @@ The tool displays responses in a structured format:
 - **Response Info Table**: Status, response time, content length/type
 - **Headers Table**: All response headers in a formatted table
 - **Response Body**: Formatted JSON or raw text
-- **Status Indicators**: 
+- **Status Indicators**:
   - ✅ Green for 2xx (success)
   - ⚠️ Yellow for 4xx (client errors)
   - ❌ Red for 5xx (server errors)

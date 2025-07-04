@@ -38,7 +38,7 @@ const commonHeaders = [
 
 // Generate quick command string for reuse
 function generateQuickCommand(config) {
-  let command = 'http-cli quick';
+  let command = 'awesome-http-cli quick';
 
   // Add URL
   command += ` -u "${config.url}"`;
@@ -385,7 +385,7 @@ async function startInteractiveMode() {
 
 // Program setup
 program
-  .name('http-cli')
+  .name('awesome-http-cli')
   .description('Interactive HTTP client for the command line')
   .version('1.0.0');
 
