@@ -1,6 +1,6 @@
 {
   "name": "awesome-http-cli",
-  "version": "1.0.1",
+  "version": "1.1.0",
   "description": "Interactive HTTP client for the command line",
   "main": "index.js",
   "bin": {
