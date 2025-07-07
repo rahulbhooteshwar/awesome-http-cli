@@ -8,6 +8,7 @@ const figlet = require('figlet');
 const ora = require('ora');
 const Table = require('cli-table3');
 const { JSONPath } = require('jsonpath-plus');
+const { makeRequestWithDetailedTiming, displayResponseBreakdown } = require('./request-timer');
 
 // ASCII Art Banner
 function showBanner() {
@@ -35,6 +36,212 @@ const commonHeaders = [
   { name: 'Accept-Encoding: gzip, deflate', value: { 'Accept-Encoding': 'gzip, deflate' } },
   { name: 'Cache-Control: no-cache', value: { 'Cache-Control': 'no-cache' } }
 ];
+
+// Enhanced timing tracker
+class RequestTimer {
+  constructor() {
+    this.timings = {
+      start: null,
+      end: null,
+      total: null,
+      phases: {
+        dns: null,
+        tcp: null,
+        tls: null,
+        request: null,
+        firstByte: null,
+        download: null
+      }
+    };
+  }
+
+  start() {
+    this.timings.start = performance.now();
+    return this;
+  }
+
+  end() {
+    this.timings.end = performance.now();
+    this.timings.total = this.timings.end - this.timings.start;
+    // For now, we'll estimate phases (real implementation would need lower-level hooks)
+    this.timings.phases.request = this.timings.total * 0.3;
+    this.timings.phases.firstByte = this.timings.total * 0.6;
+    this.timings.phases.download = this.timings.total * 0.4;
+    return this;
+  }
+
+  getTimings() {
+    return { ...this.timings };
+  }
+}
+
+// Response analyzer
+class ResponseAnalyzer {
+  constructor(response) {
+    this.response = response;
+    this.analysis = this.analyze();
+  }
+
+  analyze() {
+    const data = this.response.data;
+    const headers = this.response.headers;
+    const status = this.response.status;
+
+    return {
+      dataType: this.getDataType(data, headers),
+      size: this.getResponseSize(data, headers),
+      structure: this.analyzeStructure(data),
+      performance: this.analyzePerformance(),
+      security: this.analyzeSecurityHeaders(headers),
+      caching: this.analyzeCaching(headers),
+      statusCategory: this.getStatusCategory(status)
+    };
+  }
+
+  getDataType(data, headers) {
+    const contentType = headers['content-type'] || '';
+
+    if (contentType.includes('application/json')) return 'JSON';
+    if (contentType.includes('text/html')) return 'HTML';
+    if (contentType.includes('text/xml') || contentType.includes('application/xml')) return 'XML';
+    if (contentType.includes('text/plain')) return 'Plain Text';
+    if (contentType.includes('image/')) return 'Image';
+    if (contentType.includes('application/pdf')) return 'PDF';
+
+    return 'Unknown';
+  }
+
+  getResponseSize(data, headers) {
+    const contentLength = headers['content-length'];
+    if (contentLength) {
+      return {
+        bytes: parseInt(contentLength),
+        formatted: this.formatBytes(parseInt(contentLength))
+      };
+    }
+
+    // Estimate size from data
+    const estimatedSize = JSON.stringify(data).length;
+    return {
+      bytes: estimatedSize,
+      formatted: this.formatBytes(estimatedSize),
+      estimated: true
+    };
+  }
+
+  formatBytes(bytes) {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+  }
+
+  analyzeStructure(data) {
+    if (!data) return { type: 'empty' };
+
+    if (Array.isArray(data)) {
+      return {
+        type: 'array',
+        length: data.length,
+        itemType: data.length > 0 ? typeof data[0] : 'unknown'
+      };
+    }
+
+    if (typeof data === 'object') {
+      const keys = Object.keys(data);
+      return {
+        type: 'object',
+        keys: keys.length,
+        topLevelKeys: keys.slice(0, 10) // Show first 10 keys
+      };
+    }
+
+    return {
+      type: typeof data,
+      length: data.toString().length
+    };
+  }
+
+  analyzePerformance() {
+    const timing = this.response.timing || {};
+    const status = this.response.status;
+
+    let performance = 'good';
+    if (timing.total > 5000) performance = 'slow';
+    else if (timing.total > 2000) performance = 'moderate';
+    else if (timing.total < 500) performance = 'excellent';
+
+    return {
+      rating: performance,
+      recommendations: this.getPerformanceRecommendations(timing, status)
+    };
+  }
+
+  getPerformanceRecommendations(timing, status) {
+    const recommendations = [];
+
+    if (timing.total > 2000) {
+      recommendations.push('Consider optimizing server response time');
+    }
+
+    if (status >= 400) {
+      recommendations.push('Check API endpoint and request parameters');
+    }
+
+    if (!this.response.headers['cache-control']) {
+      recommendations.push('Consider adding cache headers for better performance');
+    }
+
+    return recommendations;
+  }
+
+  analyzeSecurityHeaders(headers) {
+    const securityHeaders = {
+      'strict-transport-security': 'HSTS',
+      'x-frame-options': 'Frame Options',
+      'x-content-type-options': 'Content Type Options',
+      'x-xss-protection': 'XSS Protection',
+      'content-security-policy': 'CSP'
+    };
+
+    const present = [];
+    const missing = [];
+
+    Object.entries(securityHeaders).forEach(([header, name]) => {
+      if (headers[header]) {
+        present.push(name);
+      } else {
+        missing.push(name);
+      }
+    });
+
+    return { present, missing };
+  }
+
+  analyzeCaching(headers) {
+    const cacheControl = headers['cache-control'];
+    const etag = headers['etag'];
+    const lastModified = headers['last-modified'];
+    const expires = headers['expires'];
+
+    return {
+      cacheControl: cacheControl || 'Not set',
+      etag: etag ? 'Present' : 'Not set',
+      lastModified: lastModified || 'Not set',
+      expires: expires || 'Not set',
+      cacheable: !!(cacheControl && !cacheControl.includes('no-cache'))
+    };
+  }
+
+  getStatusCategory(status) {
+    if (status >= 200 && status < 300) return 'success';
+    if (status >= 300 && status < 400) return 'redirect';
+    if (status >= 400 && status < 500) return 'client_error';
+    if (status >= 500) return 'server_error';
+    return 'informational';
+  }
+}
 
 // Generate quick command string for reuse
 function generateQuickCommand(config) {
@@ -92,18 +299,44 @@ function parseJSON(jsonString) {
   }
 }
 
-// Format response data
+// Enhanced body preview with smart truncation
+function formatBodyPreview(data, dataType) {
+  if (!data) return chalk.gray('No response body');
+
+  let preview = '';
+  const maxLength = 1000;
+
+  if (dataType === 'JSON') {
+    try {
+      const formatted = JSON.stringify(data, null, 2);
+      preview = formatted.length > maxLength ?
+        formatted.substring(0, maxLength) + '\n... (truncated)' :
+        formatted;
+    } catch {
+      preview = data.toString();
+    }
+  } else {
+    const str = typeof data === 'string' ? data : JSON.stringify(data);
+    preview = str.length > maxLength ?
+      str.substring(0, maxLength) + '\n... (truncated)' :
+      str;
+  }
+
+  return preview;
+}
+
+// Legacy format functions (kept for compatibility)
 function formatResponse(response) {
   const table = new Table({
     head: [chalk.cyan('Response Info'), chalk.cyan('Value')],
     colWidths: [20, 60]
   });
 
-  const responseTime = response.config.metadata?.endTime - response.config.metadata?.startTime || 0;
+  const responseTime = response.timing?.total || 0;
 
   table.push(
     [chalk.yellow('Status'), `${response.status} ${response.statusText}`],
-    [chalk.yellow('Response Time'), `${responseTime}ms`],
+    [chalk.yellow('Response Time'), `${responseTime.toFixed(2)}ms`],
     [chalk.yellow('Content Length'), response.headers['content-length'] || 'N/A'],
     [chalk.yellow('Content Type'), response.headers['content-type'] || 'N/A']
   );
@@ -111,7 +344,6 @@ function formatResponse(response) {
   return table.toString();
 }
 
-// Format response headers
 function formatHeaders(headers) {
   const table = new Table({
     head: [chalk.cyan('Header'), chalk.cyan('Value')],
@@ -125,7 +357,6 @@ function formatHeaders(headers) {
   return table.toString();
 }
 
-// Format response body
 function formatBody(data, contentType) {
   if (!data) return chalk.gray('No response body');
 
@@ -142,76 +373,6 @@ function formatBody(data, contentType) {
   }
 
   return data.toString();
-}
-
-// Main HTTP request function
-async function makeRequest(config) {
-  const spinner = ora('Sending HTTP request...').start();
-
-  try {
-    // Add request interceptor for timing
-    const requestConfig = {
-      ...config,
-      metadata: { startTime: Date.now() }
-    };
-
-    const response = await axios({
-      ...requestConfig,
-      validateStatus: () => true // Don't throw on 4xx/5xx
-    });
-
-    response.config.metadata.endTime = Date.now();
-    spinner.succeed('Request completed!');
-
-    return response;
-  } catch (error) {
-    spinner.fail('Request failed!');
-    throw error;
-  }
-}
-
-// Display complete response (used by both interactive and quick modes)
-function displayCompleteResponse(response, config) {
-  // Display response body first
-  console.log(chalk.blue.bold('\n📄 Response Body:'));
-  const formattedBody = formatBody(response.data, response.headers['content-type']);
-  console.log(formattedBody);
-
-  // Show request summary
-  console.log(chalk.green.bold('\n📤 Request Summary:'));
-  console.log(chalk.white(`${config.method.toUpperCase()} ${config.originalUrl || config.url}`));
-
-  if (Object.keys(config.headers || {}).length > 0) {
-    console.log(chalk.gray('Headers:'), JSON.stringify(config.headers, null, 2));
-  }
-
-  if (Object.keys(config.params || {}).length > 0) {
-    console.log(chalk.gray('Query Params:'), JSON.stringify(config.params, null, 2));
-  }
-
-  if (config.data) {
-    console.log(chalk.gray('Body:'), typeof config.data === 'object' ? JSON.stringify(config.data, null, 2) : config.data);
-  }
-
-  // Status color coding with timing
-  const responseTime = response.config.metadata?.endTime - response.config.metadata?.startTime || 0;
-
-  if (response.status >= 200 && response.status < 300) {
-    console.log(chalk.green.bold(`\n✅ Success! Status: ${response.status} | Time: ${responseTime}ms`));
-  } else if (response.status >= 400 && response.status < 500) {
-    console.log(chalk.yellow.bold(`\n⚠️  Client Error! Status: ${response.status} | Time: ${responseTime}ms`));
-  } else if (response.status >= 500) {
-    console.log(chalk.red.bold(`\n❌ Server Error! Status: ${response.status} | Time: ${responseTime}ms`));
-  } else {
-    console.log(chalk.blue.bold(`\n📊 Response! Status: ${response.status} | Time: ${responseTime}ms`));
-  }
-
-  // Display tables at the end
-  console.log(chalk.green.bold('\n📊 Response Summary:'));
-  console.log(formatResponse(response));
-
-  console.log(chalk.blue.bold('\n📋 Response Headers:'));
-  console.log(formatHeaders(response.headers));
 }
 
 // Main interactive flow
@@ -311,7 +472,7 @@ async function startInteractiveMode() {
           config.headers[key] = value;
         }
       }
-    };
+    }
 
     // Add custom headers
     if (answers.customHeaders && answers.customHeaders.trim()) {
@@ -347,15 +508,10 @@ async function startInteractiveMode() {
 
     try {
       // Make the request
-      const response = await makeRequest(config);
+      const response = await makeRequestWithDetailedTiming(config);
 
-      // Display complete response
-      displayCompleteResponse(response, config);
-
-      // Generate quick command for future use (only in interactive mode)
-      console.log(chalk.cyan.bold('\n⚡ Quick Command for Future Use:'));
-      const quickCommand = generateQuickCommand(config);
-      console.log(chalk.gray(quickCommand));
+      // Display complete response with breakdown
+      displayResponseBreakdown(response, config);
 
     } catch (error) {
       console.log(chalk.red.bold('\n❌ Request Error:'));
@@ -414,14 +570,15 @@ program
       url: options.url,
       method: options.method.toLowerCase(),
       headers: options.headers ? JSON.parse(options.headers) : {},
-      data: options.data ? (parseJSON(options.data) || options.data) : undefined
+      data: options.data ? (parseJSON(options.data) || options.data) : undefined,
+      showQuickCommand: false // Don't show quick command in quick mode
     };
 
     try {
-      const response = await makeRequest(config);
+      const response = await makeRequestWithDetailedTiming(config);
 
       // Use the same complete response display as interactive mode
-      displayCompleteResponse(response, config);
+      displayResponseBreakdown(response, config);
 
     } catch (error) {
       console.log(chalk.red.bold('\n❌ Request Error:'));
