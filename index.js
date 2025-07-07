@@ -10,6 +10,8 @@ const Table = require('cli-table3');
 const { JSONPath } = require('jsonpath-plus');
 const { makeRequestWithDetailedTiming, displayResponseBreakdown } = require('./request-timer');
 
+const packageInfo = require('./package.json');
+
 // ASCII Art Banner
 function showBanner() {
   console.log(
@@ -543,7 +545,7 @@ async function startInteractiveMode() {
 program
   .name('awesome-http-cli')
   .description('Interactive HTTP client for the command line')
-  .version('1.0.0');
+  .version(packageInfo.version);
 
 program
   .command('start')
